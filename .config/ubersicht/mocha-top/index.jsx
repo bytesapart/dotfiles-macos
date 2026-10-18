@@ -3,7 +3,7 @@
 export const refreshFrequency = 3000;
 
 export const command =
-  "ps -Ao %cpu,args -r | head -7 | tail -6 | python3 -c 'import sys,os; " +
+  "ps -Ao %cpu,args -r | head -7 | tail -6 | /usr/bin/python3 -c 'import sys,os; " +
   "[print(f\"{os.path.basename(l.split(None,1)[1].split()[0])}|{float(l.split()[0]):.1f}\") " +
   "for l in sys.stdin if l.split()]'";
 

@@ -4,7 +4,7 @@ local colors = require("colors")
 -- Padding item required because of bracket
 sbar.add("item", { position = "right", width = settings.group_paddings })
 
-local cal = sbar.add("item", {
+local cal = sbar.add("item", "widgets.calendar", {
   icon = {
     color = colors.white,
     padding_left = 8,
@@ -29,7 +29,7 @@ local cal = sbar.add("item", {
     border_color = colors.black,
     border_width = 1
   },
-  click_script = "open -a 'Calendar'"
+  popup = { align = "center" },
 })
 
 -- Double border for calendar using a single item bracket
@@ -46,4 +46,22 @@ sbar.add("item", { position = "right", width = settings.group_paddings })
 
 cal:subscribe({ "forced", "routine", "system_woke" }, function(env)
   cal:set({ icon = os.date("%a. %d %b."), label = os.date("%H:%M") })
+end)
+
+local cal_month = sbar.add("item", {
+  position = "popup." .. cal.name,
+  icon = { drawing = false },
+  label = {
+    string = "loading…",
+    font = { family = settings.font.numbers, size = 11.0 },
+    align = "left",
+  },
+  click_script = "open -a 'Calendar'",
+})
+
+cal:subscribe("mouse.clicked", function(env)
+  cal:set({ popup = { drawing = "toggle" } })
+  sbar.exec("cal", function(output)
+    cal_month:set({ label = output })
+  end)
 end)

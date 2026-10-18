@@ -188,6 +188,30 @@ kitty + zsh + starship, everything in Catppuccin Mocha:
 | `.config/btop/themes/`, `.config/lazygit/`, `.config/fastfetch/` | TUI themes/config (btop, lazygit, fastfetch) |
 | `yabai-macos27.patch`, `install_yabai_macos27.sh`, `yabai_verify_offsets.py` | macOS 27 yabai fix |
 | `install_sketchybar.sh` | Upstream SketchyBar-only installer |
+| `scripts/setup.sh` | One-script rice: Brewfile delta, yabai27, services, widgets, wallpapers, holzBar |
+| `scripts/Brewfile` | Rice package delta (`brew bundle`) |
+| `scripts/permissions.sh` | Guided TCC pass (called by setup.sh; safe to re-run) |
+| `assets/wallpapers/` (133) | Catppuccin-Mocha rotation set → `~/Pictures/Wallpapers/Mocha/` |
+| `assets/holzbar-mocha.holzbarprofile` | Menu layout: every icon into the dropdown shelf |
+
+## Reproduce this Mac
+
+```sh
+zsh .install.sh          # base: brew, fonts, defaults, services, configs
+zsh scripts/setup.sh     # rice: packages, yabai27, widgets, wallpapers, holzBar + permission pass
+```
+
+`setup.sh` is idempotent. Three things cannot be scripted and need one
+click each (the script opens the right pane and waits):
+
+1. TCC flips in `scripts/permissions.sh` (Accessibility for yabai/skhd/holzBar,
+   optional Screen Recording for holzBar) — verified functionally where possible.
+2. Wallpaper rotation: Settings → Wallpaper → Add Photo… → Choose Folder… →
+   `~/Pictures/Wallpapers/Mocha`, Shuffle + Every 30 Minutes + Randomly +
+   Show on all Spaces.
+3. holzBar layout: `open "holzbar://settings"` → Menu Bar Layout →
+   Import Profile… → `assets/holzbar-mocha.holzbarprofile`.
+   Then log out/in once (unhidden native bar + sketchybar stack).
 
 ## Credits
 

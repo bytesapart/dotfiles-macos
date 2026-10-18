@@ -1,0 +1,11 @@
+tap "FelixKratz/formulae"
+tap "holzcloud/holzbar"
+
+# Rice deltas on top of .install.sh (it already covers terminals, fonts,
+# sketchybar, skhd, borders, yabai, eza/bat/fzf/…).
+brew "jq"
+brew "nowplaying-cli"
+brew "switchaudio-osx"
+
+cask "holzbar"
+cask "ubersicht"

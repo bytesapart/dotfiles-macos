@@ -49,6 +49,9 @@ disabled = false
 style = "bg:surface0 fg:text"
 format = "[$symbol ]($style)"
 
+[os.symbols]
+Macos = ""
+
 [username]
 show_always = false
 style_user = "bg:surface0 fg:text"

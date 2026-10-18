@@ -28,7 +28,36 @@ local cpu = sbar.add("graph", "widgets.cpu" , 42, {
     width = 0,
     y_offset = 4
   },
-  padding_right = settings.paddings + 6
+  padding_right = settings.paddings + 6,
+  popup = { align = "center" }
+})
+
+local cpu_user = sbar.add("item", {
+  position = "popup." .. cpu.name,
+  icon = {
+    string = "User:",
+    width = 100,
+    align = "left"
+  },
+  label = {
+    string = "??%",
+    width = 100,
+    align = "right"
+  },
+})
+
+local cpu_sys = sbar.add("item", {
+  position = "popup." .. cpu.name,
+  icon = {
+    string = "Sys:",
+    width = 100,
+    align = "left"
+  },
+  label = {
+    string = "??%",
+    width = 100,
+    align = "right"
+  },
 })
 
 cpu:subscribe("cpu_update", function(env)
@@ -51,10 +80,16 @@ cpu:subscribe("cpu_update", function(env)
     graph = { color = color },
     label = "cpu " .. env.total_load .. "%",
   })
+  cpu_user:set({ label = env.user_load .. "%" })
+  cpu_sys:set({ label = env.sys_load .. "%" })
 end)
 
 cpu:subscribe("mouse.clicked", function(env)
-  sbar.exec("open -a 'Activity Monitor'")
+  if env.BUTTON == "right" then
+    sbar.exec("open -a 'Activity Monitor'")
+  else
+    cpu:set({ popup = { drawing = "toggle" } })
+  end
 end)
 
 -- Background around the cpu item

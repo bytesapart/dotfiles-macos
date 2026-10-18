@@ -5,7 +5,7 @@ import { run } from 'uebersicht';
 export const refreshFrequency = 2000;
 
 export const command =
-  'yabai -m query --spaces | jq -r \'.[] | "\\(.index)|\\(if .focused then 1 else 0 end)|\\(.windows | length)"\'';
+  '/opt/homebrew/bin/yabai -m query --spaces | /usr/bin/jq -r \'.[] | "\\(.index)|\\(if ."has-focus" then 1 else 0 end)|\\(.windows | length)"\'';
 
 export const className = {
   top: '104px',

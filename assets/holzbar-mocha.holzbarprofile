@@ -1,0 +1,94 @@
+{
+  "format": 1,
+  "name": "Mocha - all hidden",
+  "apps": [
+    {
+      "id": "ch.protonmail.drive",
+      "section": 1
+    },
+    {
+      "id": "com.adobe.acc.AdobeCreativeCloud",
+      "section": 1
+    },
+    {
+      "id": "com.apphousekitchen.aldente-pro",
+      "section": 1
+    },
+    {
+      "id": "com.apple.TextInputMenuAgent",
+      "section": 1
+    },
+    {
+      "id": "com.apple.campo",
+      "section": 1
+    },
+    {
+      "id": "com.apple.weather.menu",
+      "section": 1
+    },
+    {
+      "id": "com.carriez.rustdesk",
+      "section": 1
+    },
+    {
+      "id": "com.if.Amphetamine",
+      "section": 1
+    },
+    {
+      "id": "com.logi.ghub",
+      "section": 1
+    },
+    {
+      "id": "com.macpaw.CleanMyMac5.Menu",
+      "section": 1
+    },
+    {
+      "id": "com.meta.virtualdesktop",
+      "section": 1
+    },
+    {
+      "id": "com.objective-see.lulu.app",
+      "section": 1
+    },
+    {
+      "id": "com.rogueamoeba.soundsource",
+      "section": 1
+    },
+    {
+      "id": "com.runningwithcrayons.Alfred",
+      "section": 1
+    },
+    {
+      "id": "com.stablyai.orca",
+      "section": 1
+    },
+    {
+      "id": "com.symless.synergy",
+      "section": 1
+    },
+    {
+      "id": "io.tailscale.ipn.macsys",
+      "section": 1
+    },
+    {
+      "id": "notion.id",
+      "section": 1
+    },
+    {
+      "id": "tracesOf.Uebersicht",
+      "section": 1
+    },
+    {
+      "id": "com.apple.controlcenter",
+      "section": 1
+    },
+    {
+      "id": "com.apple.Spotlight",
+      "section": 1
+    },
+    {
+      "id": "com.apple.Siri",
+      "section": 1
+    }
+  ]
+}
