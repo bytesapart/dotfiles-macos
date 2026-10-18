@@ -48,20 +48,20 @@ function suyabai () {
   fi
 }
 
-# Color Scheme
-export BLACK=0xff181819
-export WHITE=0xffe2e2e3
-export RED=0xfffc5d7c
-export GREEN=0xff9ed072
-export BLUE=0xff76cce0
-export YELLOW=0xffe7c664
-export ORANGE=0xfff39660
-export MAGENTA=0xffb39df3
-export GREY=0xff7f8490
+# Color Scheme (Catppuccin Mocha)
+export BLACK=0xff11111b
+export WHITE=0xffcdd6f4
+export RED=0xfff38ba8
+export GREEN=0xffa6e3a1
+export BLUE=0xff89b4fa
+export YELLOW=0xfff9e2af
+export ORANGE=0xfffab387
+export MAGENTA=0xffcba6f7
+export GREY=0xff7f849c
 export TRANSPARENT=0x00000000
-export BG0=0xff2c2e34
-export BG1=0xff363944
-export BG2=0xff414550
+export BG0=0xff1e1e2e
+export BG1=0xff313244
+export BG2=0xff45475a
 
 source "$HOME/.cargo/env"
 
