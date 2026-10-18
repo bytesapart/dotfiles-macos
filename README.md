@@ -12,6 +12,8 @@ Components: [yabai](https://github.com/asmvik/yabai) (tiling WM),
 [kitty](https://sw.kovidgoyal.net/kitty/) + zsh +
 [starship](https://starship.rs/) (terminal).
 
+![kitty with powerline tab bar and prompt, eza listing and bat syntax highlighting in Catppuccin Mocha](assets/terminal.png)
+
 ## What differs from upstream
 
 * **Working yabai on macOS 27.** Upstream yabai v7.1.25 has no macOS 27
@@ -159,7 +161,13 @@ kitty + zsh + starship, everything in Catppuccin Mocha:
   terminals greet with `fastfetch`.
 * **Git diffs** page through [delta](https://dandavison.github.io/delta/)
   with the Catppuccin Mocha bat syntax theme (`.install.sh` sets the
-  `git config` values; `n`/`N` jump between files in a diff).
+  `git config` values; `n`/`N` jump between files in a diff). Man pages
+  render through bat too, and the fzf pickers preview files with bat
+  and directories with eza.
+* **TUIs too:** helix uses its built-in `catppuccin_mocha` theme, btop
+  and lazygit use their Catppuccin ports (vendored under
+  `.config/btop/themes/` and `.config/lazygit/`), and fastfetch uses
+  the compact config in `.config/fastfetch/`.
 * **Editing:** zsh-autosuggestions (ghost text, `→` accepts) and
   fast-syntax-highlighting are loaded; history is shared across shells.
 * Themes live at `.config/eza/theme.yml` and
@@ -177,6 +185,7 @@ kitty + zsh + starship, everything in Catppuccin Mocha:
 | `.config/kitty/`, `.config/starship.toml`, `.zshrc` | Terminal + prompt + shell |
 | `.config/eza/`, `.config/bat/` | CLI themes |
 | `.config/helix/`, `.config/nvim` (via SVim), `.tmux.conf` | Editors |
+| `.config/btop/themes/`, `.config/lazygit/`, `.config/fastfetch/` | TUI themes/config (btop, lazygit, fastfetch) |
 | `yabai-macos27.patch`, `install_yabai_macos27.sh`, `yabai_verify_offsets.py` | macOS 27 yabai fix |
 | `install_sketchybar.sh` | Upstream SketchyBar-only installer |
 
