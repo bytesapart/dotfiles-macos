@@ -1,0 +1,508 @@
+From 048c8bf655db14e89f23e320537fd712a016e809 Mon Sep 17 00:00:00 2001
+From: Ahsan Fazal <me@ahsanfazal.com>
+Date: Tue, 9 Jun 2026 11:59:06 +0200
+Subject: [PATCH] add compatibility for Golden Gate (macOS 27) Developer Beta 1
+
+---
+ makefile                 | 16 ++++++-
+ scripts/install-local.sh | 90 ++++++++++++++++++++++++++++++++++++++++
+ src/event_loop.c         | 12 +++---
+ src/osax/arm64_payload.m | 42 ++++++++++++-------
+ src/osax/payload.m       | 10 +++++
+ src/view.c               |  4 +-
+ src/window.c             |  4 +-
+ src/window_manager.c     |  2 +-
+ src/workspace.h          | 13 +++---
+ src/yabai.c              |  8 ++--
+ 10 files changed, 165 insertions(+), 36 deletions(-)
+ create mode 100755 scripts/install-local.sh
+
+diff --git a/makefile b/makefile
+index ba47be3..c8f140f 100644
+--- a/makefile
++++ b/makefile
+@@ -3,6 +3,8 @@ FRAMEWORK      = -framework Carbon -framework Cocoa -framework CoreServices -fra
+ CLI_FLAGS      =
+ BUILD_FLAGS    = -std=c11 -Wall -Wextra -g -O0 -fvisibility=hidden -mmacosx-version-min=11.0 -fno-objc-arc -arch x86_64 -arch arm64 -sectcreate __TEXT __info_plist $(INFO_PLIST)
+ BUILD_PATH     = ./bin
++PREFIX        ?= /opt/homebrew
++YABAI_CERT    ?= yabai-cert
+ DOC_PATH       = ./doc
+ SCRIPT_PATH    = ./scripts
+ ASSET_PATH     = ./assets
+@@ -14,7 +16,7 @@ OSAX_PATH      = ./src/osax
+ INFO_PLIST     = $(ASSET_PATH)/Info.plist
+ BINS           = $(BUILD_PATH)/yabai
+ 
+-.PHONY: all asan tsan install man icon archive publish sign clean-build clean
++.PHONY: all asan tsan install install-local uninstall-local man icon archive publish sign clean-build clean
+ 
+ all: clean-build $(BINS)
+ 
+@@ -27,6 +29,18 @@ tsan: clean-build $(BINS)
+ install: BUILD_FLAGS=-std=c11 -Wall -Wextra -DNDEBUG -O3 -fvisibility=hidden -mmacosx-version-min=11.0 -fno-objc-arc -arch x86_64 -arch arm64 -sectcreate __TEXT __info_plist $(INFO_PLIST)
+ install: clean-build $(BINS)
+ 
++# Build (release) and install from source so it behaves exactly like a Homebrew install:
++# copies the binary into PATH, codesigns it with a STABLE cert (so Accessibility grants
++# survive rebuilds), refreshes the passwordless --load-sa sudoers entry, loads the
++# scripting addition, and starts the service. Prompts for your password once (sudoers +
++# load-sa). Override location/identity: `make install-local PREFIX=/usr/local YABAI_CERT=my-cert`
++install-local: BUILD_FLAGS=-std=c11 -Wall -Wextra -DNDEBUG -O3 -fvisibility=hidden -mmacosx-version-min=11.0 -fno-objc-arc -arch x86_64 -arch arm64 -sectcreate __TEXT __info_plist $(INFO_PLIST)
++install-local: clean-build $(BINS)
++	PREFIX="$(PREFIX)" YABAI_CERT="$(YABAI_CERT)" $(SCRIPT_PATH)/install-local.sh
++
++uninstall-local:
++	PREFIX="$(PREFIX)" $(SCRIPT_PATH)/install-local.sh --uninstall
++
+ $(OSAX_SRC): $(OSAX_PATH)/loader.m $(OSAX_PATH)/payload.m
+ 	xcrun clang $(OSAX_PATH)/payload.m -shared -fPIC -O3 -mmacosx-version-min=11.0 -arch x86_64 -arch arm64e -o $(OSAX_PATH)/payload $(FRAMEWORK_PATH) -framework SkyLight -framework Foundation -framework Carbon
+ 	xcrun clang $(OSAX_PATH)/loader.m -O3 -mmacosx-version-min=11.0 -arch x86_64 -arch arm64e -o $(OSAX_PATH)/loader -framework Cocoa
+diff --git a/scripts/install-local.sh b/scripts/install-local.sh
+new file mode 100755
+index 0000000..ba34d3f
+--- /dev/null
++++ b/scripts/install-local.sh
+@@ -0,0 +1,90 @@
++#!/usr/bin/env bash
++# install-local.sh - make a from-source build behave exactly like a Homebrew install.
++#
++# Mirrors the canonical update-from-HEAD workflow:
++#   stop/uninstall old service -> install binary into PATH -> codesign with a STABLE
++#   self-signed cert (so macOS Accessibility/Screen-Recording grants survive rebuilds)
++#   -> refresh the passwordless `--load-sa` sudoers entry (hash of the SIGNED binary)
++#   -> load the scripting addition -> start the launchd service.
++#
++# Run via `make install-local` (which builds first). Honours:
++#   PREFIX      install location (default /opt/homebrew, i.e. $(brew --prefix))
++#   YABAI_CERT  code-signing identity   (default yabai-cert)
++#
++# Requires a `yabai-cert` Code Signing identity in your keychain. Create one once:
++#   Keychain Access -> Certificate Assistant -> Create a Certificate
++#     Name: yabai-cert   Identity Type: Self Signed Root   Certificate Type: Code Signing
++set -euo pipefail
++
++if [ "$(id -u)" -eq 0 ]; then
++  cat >&2 <<'EOF'
++error: run this as your normal user, NOT with sudo (`make install-local`, not `sudo make ...`).
++It elevates only the steps that need root and will prompt for your password.
++Running the whole thing as root signs against root's keychain, writes a `root` sudoers
++entry, and makes --load-sa look for the wrong per-user SA socket (SUDO_UID=0) -> it fails.
++EOF
++  exit 1
++fi
++
++root="$(cd "$(dirname "$0")/.." && pwd)"
++PREFIX="${PREFIX:-/opt/homebrew}"
++YABAI_CERT="${YABAI_CERT:-yabai-cert}"
++BIN_SRC="$root/bin/yabai"
++BIN_DST="$PREFIX/bin/yabai"
++SUDOERS="/private/etc/sudoers.d/yabai"
++
++if [ "${1:-}" = "--uninstall" ]; then
++  echo "==> uninstalling"
++  yabai --stop-service 2>/dev/null || true
++  yabai --uninstall-service 2>/dev/null || true
++  sudo "$BIN_DST" --uninstall-sa 2>/dev/null || true
++  rm -f "$BIN_DST"
++  sudo rm -f "$SUDOERS"
++  echo "==> removed binary, service, scripting-addition, and sudoers entry"
++  exit 0
++fi
++
++[ -x "$BIN_SRC" ] || { echo "error: $BIN_SRC not built — run 'make' first" >&2; exit 1; }
++
++echo "==> stopping any existing service"
++yabai --stop-service 2>/dev/null || true
++yabai --uninstall-service 2>/dev/null || true
++
++echo "==> installing $BIN_SRC -> $BIN_DST"
++mkdir -p "$PREFIX/bin"
++rm -f "$BIN_DST"                      # clear any prior symlink (e.g. from a dev `ln -s`)
++cp "$BIN_SRC" "$BIN_DST"
++
++echo "==> codesigning with '$YABAI_CERT' (stable identity -> Accessibility persists across rebuilds)"
++if ! codesign -fs "$YABAI_CERT" "$BIN_DST" 2>/dev/null; then
++  cat >&2 <<EOF
++error: code-signing identity '$YABAI_CERT' not found or unusable.
++Create a self-signed Code Signing certificate once, then re-run:
++  Keychain Access -> Certificate Assistant -> Create a Certificate
++    Name: $YABAI_CERT   Identity Type: Self Signed Root   Certificate Type: Code Signing
++(or point at another identity with YABAI_CERT=...)
++EOF
++  rm -f "$BIN_DST"
++  exit 1
++fi
++codesign --verify --verbose "$BIN_DST"
++
++echo "==> refreshing $SUDOERS (passwordless --load-sa, pinned to the SIGNED binary's hash)"
++hash="$(shasum -a 256 "$BIN_DST" | cut -d' ' -f1)"
++printf '%s ALL=(root) NOPASSWD: sha256:%s %s --load-sa\n' "$(whoami)" "$hash" "$BIN_DST" \
++  | sudo tee "$SUDOERS" >/dev/null
++sudo chmod 0440 "$SUDOERS"
++sudo visudo -cf "$SUDOERS"           # validate; aborts if the entry is malformed
++
++echo "==> loading scripting addition"
++sudo "$BIN_DST" --load-sa
++
++echo "==> starting launchd service"
++"$BIN_DST" --start-service
++
++cat <<EOF
++
++==> done. yabai is signed ($YABAI_CERT), installed at $BIN_DST, SA loaded, service running.
++    First run after a NEW signature: grant Accessibility once
++    (System Settings -> Privacy & Security -> Accessibility). It will persist from now on.
++EOF
+diff --git a/src/event_loop.c b/src/event_loop.c
+index f66d11c..4630071 100644
+--- a/src/event_loop.c
++++ b/src/event_loop.c
+@@ -18,7 +18,7 @@ static void update_window_notifications(void)
+     int window_count = 0;
+     uint32_t window_list[1024] = {0};
+ 
+-    if (workspace_is_macos_sequoia() || workspace_is_macos_tahoe()) {
++    if (workspace_is_macos_sequoia() || (workspace_is_macos_tahoe() || workspace_is_macos_goldengate())) {
+         // NOTE(asmvik): Subscribe to all windows because of window_destroyed (and ordered) notifications
+         table_for (struct window *window, g_window_manager.window, {
+             window_list[window_count++] = window->id;
+@@ -242,7 +242,7 @@ static EVENT_HANDLER(APPLICATION_LAUNCHED)
+         view_clear_flag(view, VIEW_IS_DIRTY);
+     }
+ 
+-    if (workspace_is_macos_sequoia() || workspace_is_macos_tahoe()) {
++    if (workspace_is_macos_sequoia() || (workspace_is_macos_tahoe() || workspace_is_macos_goldengate())) {
+         update_window_notifications();
+     }
+ }
+@@ -336,7 +336,7 @@ static EVENT_HANDLER(APPLICATION_TERMINATED)
+         view_clear_flag(view, VIEW_IS_DIRTY);
+     }
+ 
+-    if (workspace_is_macos_sequoia() || workspace_is_macos_tahoe()) {
++    if (workspace_is_macos_sequoia() || (workspace_is_macos_tahoe() || workspace_is_macos_goldengate())) {
+         update_window_notifications();
+     }
+ 
+@@ -595,7 +595,7 @@ static EVENT_HANDLER(WINDOW_CREATED)
+         event_signal_push(SIGNAL_WINDOW_CREATED, window);
+     }
+ 
+-    if (workspace_is_macos_sequoia() || workspace_is_macos_tahoe()) {
++    if (workspace_is_macos_sequoia() || (workspace_is_macos_tahoe() || workspace_is_macos_goldengate())) {
+         update_window_notifications();
+     }
+ }
+@@ -628,7 +628,7 @@ static EVENT_HANDLER(WINDOW_DESTROYED)
+     window_unobserve(window);
+     window_destroy(window);
+ 
+-    if (workspace_is_macos_sequoia() || workspace_is_macos_tahoe()) {
++    if (workspace_is_macos_sequoia() || (workspace_is_macos_tahoe() || workspace_is_macos_goldengate())) {
+         update_window_notifications();
+     }
+ }
+@@ -1550,7 +1550,7 @@ static EVENT_HANDLER(DOCK_DID_RESTART)
+         workspace_is_macos_ventura() ||
+         workspace_is_macos_sonoma() ||
+         workspace_is_macos_sequoia() ||
+-        workspace_is_macos_tahoe()) {
++        (workspace_is_macos_tahoe() || workspace_is_macos_goldengate())) {
+         mission_control_unobserve();
+         mission_control_observe();
+     }
+diff --git a/src/osax/arm64_payload.m b/src/osax/arm64_payload.m
+index b0d19ac..22dc2e3 100644
+--- a/src/osax/arm64_payload.m
++++ b/src/osax/arm64_payload.m
+@@ -5,7 +5,7 @@
+     __asm__("mov x0, %0\n""mov x1, %1\n""mov x2, %2\n""mov x20, %3\n" : :"r"(v0), "r"(v1), "r"(v2), "r"(v3) :"x0", "x1", "x2", "x20"); ((void (*)())(func))();
+ 
+ uint64_t get_dock_spaces_offset(NSOperatingSystemVersion os_version) {
+-    if (os_version.majorVersion == 26) {
++    if (os_version.majorVersion == 26 || os_version.majorVersion == 27) {
+         return 0x30000;
+     } else if (os_version.majorVersion == 15) {
+         return os_version.minorVersion >= 4 ? 0x1f0000 : 0x200000;
+@@ -21,7 +21,9 @@ uint64_t get_dock_spaces_offset(NSOperatingSystemVersion os_version) {
+ }
+ 
+ uint64_t get_dppm_offset(NSOperatingSystemVersion os_version) {
+-    if (os_version.majorVersion == 26) {
++    if (os_version.majorVersion == 27) {
++        return 0x40000;
++    } else if (os_version.majorVersion == 26) {
+         return 0x70000;
+     } else if (os_version.majorVersion == 15) {
+         return 0x250000;
+@@ -37,7 +39,9 @@ uint64_t get_dppm_offset(NSOperatingSystemVersion os_version) {
+ }
+ 
+ uint64_t get_fix_animation_offset(NSOperatingSystemVersion os_version) {
+-    if (os_version.majorVersion == 26) {
++    if (os_version.majorVersion == 27) {
++        return 0x210000;
++    } else if (os_version.majorVersion == 26) {
+         return 0x250000;
+     } else if (os_version.majorVersion == 15) {
+         return 0x250000;
+@@ -53,7 +57,9 @@ uint64_t get_fix_animation_offset(NSOperatingSystemVersion os_version) {
+ }
+ 
+ uint64_t get_add_space_offset(NSOperatingSystemVersion os_version) {
+-    if (os_version.majorVersion == 26) {
++    if (os_version.majorVersion == 27) {
++        return 0x210000;
++    } else if (os_version.majorVersion == 26) {
+         return 0x250000;
+     } else if (os_version.majorVersion == 15) {
+         return 0x250000;
+@@ -69,7 +75,9 @@ uint64_t get_add_space_offset(NSOperatingSystemVersion os_version) {
+ }
+ 
+ uint64_t get_remove_space_offset(NSOperatingSystemVersion os_version) {
+-    if (os_version.majorVersion == 26) {
++    if (os_version.majorVersion == 27) {
++        return 0x170000;
++    } else if (os_version.majorVersion == 26) {
+         return 0x1e0000;
+     } else if (os_version.majorVersion == 15) {
+         return 0x1c0000;
+@@ -85,7 +93,9 @@ uint64_t get_remove_space_offset(NSOperatingSystemVersion os_version) {
+ }
+ 
+ uint64_t get_move_space_offset(NSOperatingSystemVersion os_version) {
+-    if (os_version.majorVersion == 26) {
++    if (os_version.majorVersion == 27) {
++        return 0x170000;
++    } else if (os_version.majorVersion == 26) {
+         return 0x1c0000;
+     } else if (os_version.majorVersion == 15) {
+         return 0x1c0000;
+@@ -101,7 +111,7 @@ uint64_t get_move_space_offset(NSOperatingSystemVersion os_version) {
+ }
+ 
+ uint64_t get_set_front_window_offset(NSOperatingSystemVersion os_version) {
+-    if (os_version.majorVersion == 26) {
++    if (os_version.majorVersion == 26 || os_version.majorVersion == 27) {
+         return 0x10000;
+     } else if (os_version.majorVersion == 15) {
+         return 0x35000;
+@@ -117,7 +127,7 @@ uint64_t get_set_front_window_offset(NSOperatingSystemVersion os_version) {
+ }
+ 
+ const char *get_dock_spaces_pattern(NSOperatingSystemVersion os_version) {
+-    if (os_version.majorVersion == 26) {
++    if (os_version.majorVersion == 26 || os_version.majorVersion == 27) {
+         // Pulling out of doBindingCommand:display (search decompiled text in ghidra) function.
+         return "?8 ?? ?? ?? 08 ?? ?? 91 00 01 40 F9 E2 03 13 AA ?? ?? ?? 94 ?? ?? ?? ?? 08";
+     } else if (os_version.majorVersion == 15) {
+@@ -137,7 +147,7 @@ uint64_t get_set_front_window_offset(NSOperatingSystemVersion os_version) {
+ }
+ 
+ const char *get_dppm_pattern(NSOperatingSystemVersion os_version) {
+-    if (os_version.majorVersion == 26) {
++    if (os_version.majorVersion == 26 || os_version.majorVersion == 27) {
+         //Pulling from function 'DPRemoteConnection::_handleEvent:'
+         return "?? ?? 00 ?? 08 ?? ?? 91 00 01 40 F9 E2 03 16 AA E3 03 19 AA ?? ?? ?? 94";
+     } else if (os_version.majorVersion == 15) {
+@@ -157,7 +167,7 @@ uint64_t get_set_front_window_offset(NSOperatingSystemVersion os_version) {
+ }
+ 
+ const char *get_fix_animation_pattern(NSOperatingSystemVersion os_version) {
+-    if (os_version.majorVersion == 26) {
++    if (os_version.majorVersion == 26 || os_version.majorVersion == 27) {
+         return "00 10 6A 1E A8 ?? ?? D1 ?? 01 ?? F8";
+     } else if (os_version.majorVersion == 15) {
+         return "00 10 6A 1E A8 ?? ?? D1 ?? 01 ?? F8";
+@@ -173,7 +183,9 @@ uint64_t get_set_front_window_offset(NSOperatingSystemVersion os_version) {
+ }
+ 
+ const char *get_add_space_pattern(NSOperatingSystemVersion os_version) {
+-    if (os_version.majorVersion == 26) {
++    if (os_version.majorVersion == 27) {
++        return "7F 23 03 D5 E1 03 1E AA ?? ?? ?? 97 FE 03 01 AA ?? ?? ?? A9 FD 43 01 91 F3 03 14 AA F5 03 00 AA 96 8E 43 F8";
++    } else if (os_version.majorVersion == 26) {
+         if (os_version.minorVersion >= 4) {
+             return "7F 23 03 D5 E1 03 1E AA ?? ?? ?? 97 FE 03 01 AA FD 7B 05 A9 FD 43 01 91 F3 03 14 AA F5 03";
+         }
+@@ -192,7 +204,7 @@ uint64_t get_set_front_window_offset(NSOperatingSystemVersion os_version) {
+ }
+ 
+ const char *get_remove_space_pattern(NSOperatingSystemVersion os_version) {
+-    if (os_version.majorVersion == 26) {
++    if (os_version.majorVersion == 26 || os_version.majorVersion == 27) {
+         return "7F 23 03 D5 FF ?? ?? D1 FC ?? ?? A9 FA ?? ?? A9 F8 ?? ?? A9 F6 ?? ?? A9 F4 ?? ?? A9 FD ?? ?? A9 FD ?? ?? 91 ?? 03 03 AA F5 03 02 AA F4 03 01 AA";
+     } else if (os_version.majorVersion == 15) {
+         return "7F 23 03 D5 FF 83 ?? D1 FC 6F ?? A9 FA 67 ?? A9 F8 5F ?? A9 F6 57 ?? A9 F4 4F ?? A9 FD 7B ?? A9 FD 43 ?? 91 ?? 03 03 AA ?? 03 02 AA ?? 03 01 AA ?? 03 00 AA ?? ?? ?? AA";
+@@ -208,7 +220,7 @@ uint64_t get_set_front_window_offset(NSOperatingSystemVersion os_version) {
+ }
+ 
+ const char *get_move_space_pattern(NSOperatingSystemVersion os_version) {
+-    if (os_version.majorVersion == 26) {
++    if (os_version.majorVersion == 26 || os_version.majorVersion == 27) {
+         return "7F 23 03 D5 E3 03 1E AA ?? ?? ?? 97 FE 03 03 AA FD 7B ?? A9 FD ?? ?? 91 F6 03 14 AA";
+     } else if (os_version.majorVersion == 15) {
+         return "7F 23 03 D5 E3 03 1E AA ?? ?? FF 97 FE 03 03 AA FD 7B 06 A9 FD 83 01 91 F6 03 14 AA F4 03 02 AA FB 03 01 AA FA 03 00 AA ?? 13 00 ?? E8 ?? ?? F9 19 68 68 F8 E0 03 19 AA E1 03 16 AA";
+@@ -228,7 +240,9 @@ uint64_t get_set_front_window_offset(NSOperatingSystemVersion os_version) {
+ }
+ 
+ const char *get_set_front_window_pattern(NSOperatingSystemVersion os_version) {
+-    if (os_version.majorVersion == 26) {
++    if (os_version.majorVersion == 27) {
++        return "?? ?? ?? 34 7F 23 03 D5 FF C3 01 D1 ?? ?? ?? A9 ?? ?? ?? A9 ?? ?? ?? A9 FD 83 01 91 F3 03 01 AA F5 03 00 AA";
++    } else if (os_version.majorVersion == 26) {
+         return "21 ?? ?? 34 7F 23 03 D5 FF ?? 01 D1 F6 ?? 04 A9 F4 ?? 05 A9 FD ?? 06 A9 FD ?? 01 91";
+     } else if (os_version.majorVersion == 15) {
+         return "7F 23 03 D5 FF ?? 02 D1 F6 57 ?? A9 F4 4F ?? A9 FD 7B ?? A9 FD ?? 02 91 ?? ?? 00 ?? 08 ?? ?? F9";
+diff --git a/src/osax/payload.m b/src/osax/payload.m
+index b4d6768..8a01e37 100644
+--- a/src/osax/payload.m
++++ b/src/osax/payload.m
+@@ -238,6 +238,11 @@ static bool verify_os_version(NSOperatingSystemVersion os_version)
+         NSLog(@"[yabai-sa] Detected Tahoe Preview... flagging 'macOSSequoia=true.'");
+         macOSSequoia = true;
+         return true; // Tahoe preview
++    } else if (os_version.majorVersion == 27) {
++
++        NSLog(@"[yabai-sa] Detected Golden Gate Developer Beta 1 (27A5353q)... flagging 'macOSSequoia=true.'");
++        macOSSequoia = true;
++        return true; // Golden Gate Developer Beta 1 (26A5353q)
+     }
+ 
+     NSLog(@"[yabai-sa] spaces functionality is only supported on macOS Big Sur 11.0.0+, Monterey 12.0.0+, Ventura 13.0.0+, Sonoma 14.0.0+, and Sequoia 15.0");
+@@ -256,6 +261,11 @@ static bool verify_os_version(NSOperatingSystemVersion os_version)
+         NSLog(@"[yabai-sa] Detected Tahoe Preview... flagging 'macOSSequoia=true.'");
+         macOSSequoia = true;
+         return true; // Tahoe preview
++    } else if (os_version.majorVersion == 27) {
++
++        NSLog(@"[yabai-sa] Detected Golden Gate Developer Beta 1 (27A5353q)... flagging 'macOSSequoia=true.'");
++        macOSSequoia = true;
++        return true; // Golden Gate Developer Beta 1 (26A5353q)
+     }
+ 
+     NSLog(@"[yabai-sa] spaces functionality is only supported on macOS Monterey 12.0.0+, and Ventura 13.0.0+, Sonoma 14.0.0+, and Sequoia 15.0");
+diff --git a/src/view.c b/src/view.c
+index 160737e..b7cde3a 100644
+--- a/src/view.c
++++ b/src/view.c
+@@ -41,7 +41,7 @@ void insert_feedback_show(struct window_node *node)
+         SLSReenableUpdate(g_connection);
+         SLSOrderWindow(g_connection, node->feedback_window.id, 1, node->window_order[0]);
+         table_add(&g_window_manager.insert_feedback, &node->window_order[0], node);
+-        if (!workspace_is_macos_sequoia() && !workspace_is_macos_tahoe()) {
++        if (!workspace_is_macos_sequoia() && !(workspace_is_macos_tahoe() || workspace_is_macos_goldengate())) {
+             update_window_notifications();
+         }
+     }
+@@ -107,7 +107,7 @@ void insert_feedback_destroy(struct window_node *node)
+     if (node->feedback_window.id) {
+         table_remove(&g_window_manager.insert_feedback, &node->window_order[0]);
+ 
+-        if (!workspace_is_macos_sequoia() && !workspace_is_macos_tahoe()) {
++        if (!workspace_is_macos_sequoia() && !(workspace_is_macos_tahoe() || workspace_is_macos_goldengate())) {
+             update_window_notifications();
+         }
+ 
+diff --git a/src/window.c b/src/window.c
+index 4b19dc0..9608873 100644
+--- a/src/window.c
++++ b/src/window.c
+@@ -900,7 +900,7 @@ int window_level(uint32_t wid)
+ {
+     int level = 0;
+ 
+-    if (workspace_is_macos_ventura() || workspace_is_macos_sonoma() || workspace_is_macos_sequoia() || workspace_is_macos_tahoe()) {
++    if (workspace_is_macos_ventura() || workspace_is_macos_sonoma() || workspace_is_macos_sequoia() || (workspace_is_macos_tahoe() || workspace_is_macos_goldengate())) {
+         CFArrayRef window_ref = cfarray_of_cfnumbers(&wid, sizeof(uint32_t), 1, kCFNumberSInt32Type);
+ 
+         CFTypeRef query = SLSWindowQueryWindows(g_connection, window_ref, 1);
+@@ -945,7 +945,7 @@ static int SLSGetWindowSubLevel__Internal(int cid, uint32_t wid)
+     msg.header.msgh_bits = 0x1513;
+     msg.header.msgh_remote_port = CGSGetConnectionPortById(cid);
+     msg.header.msgh_local_port = mig_get_special_reply_port();
+-    msg.header.msgh_id = workspace_is_macos_tahoe() ? 0x76E3 : 0x73C3;
++    msg.header.msgh_id = (workspace_is_macos_tahoe() || workspace_is_macos_goldengate()) ? 0x76E3 : 0x73C3;
+     mach_msg(&msg.header, MACH_SEND_MSG|MACH_RCV_MSG, 0x24, 0x30, msg.header.msgh_local_port, 0, 0);
+ 
+     return msg.sub_level;
+diff --git a/src/window_manager.c b/src/window_manager.c
+index 13bc245..d8b5522 100644
+--- a/src/window_manager.c
++++ b/src/window_manager.c
+@@ -2264,7 +2264,7 @@ void window_manager_wait_for_native_fullscreen_transition(struct window *window)
+         workspace_is_macos_ventura() ||
+         workspace_is_macos_sonoma() ||
+         workspace_is_macos_sequoia() ||
+-        workspace_is_macos_tahoe()) {
++        (workspace_is_macos_tahoe() || workspace_is_macos_goldengate())) {
+         while (!space_is_user(space_manager_active_space())) {
+ 
+             //
+diff --git a/src/workspace.h b/src/workspace.h
+index 42fcc92..2df7669 100644
+--- a/src/workspace.h
++++ b/src/workspace.h
+@@ -2,12 +2,13 @@
+ #define WORKSPACE_H
+ 
+ #define SUPPORTED_MACOS_VERSION_LIST    \
+-    SUPPORT_MACOS_VERSION(tahoe,    26) \
+-    SUPPORT_MACOS_VERSION(sequoia,  15) \
+-    SUPPORT_MACOS_VERSION(sonoma,   14) \
+-    SUPPORT_MACOS_VERSION(ventura,  13) \
+-    SUPPORT_MACOS_VERSION(monterey, 12) \
+-    SUPPORT_MACOS_VERSION(bigsur,   11)
++    SUPPORT_MACOS_VERSION(goldengate,   27) \
++    SUPPORT_MACOS_VERSION(tahoe,        26) \
++    SUPPORT_MACOS_VERSION(sequoia,      15) \
++    SUPPORT_MACOS_VERSION(sonoma,       14) \
++    SUPPORT_MACOS_VERSION(ventura,      13) \
++    SUPPORT_MACOS_VERSION(monterey,     12) \
++    SUPPORT_MACOS_VERSION(bigsur,       11)
+ 
+ #define SUPPORT_MACOS_VERSION(name, major_version) \
+ static bool _workspace_is_macos_version_##name; \
+diff --git a/src/yabai.c b/src/yabai.c
+index eb1ecf1..6f0b500 100644
+--- a/src/yabai.c
++++ b/src/yabai.c
+@@ -312,13 +312,13 @@ int main(int argc, char **argv)
+         workspace_is_macos_ventura() ||
+         workspace_is_macos_sonoma() ||
+         workspace_is_macos_sequoia() ||
+-        workspace_is_macos_tahoe()) {
++        (workspace_is_macos_tahoe() || workspace_is_macos_goldengate())) {
+         mission_control_observe();
+ 
+         if (workspace_is_macos_ventura() ||
+             workspace_is_macos_sonoma() ||
+             workspace_is_macos_sequoia() ||
+-            workspace_is_macos_tahoe()) {
++            (workspace_is_macos_tahoe() || workspace_is_macos_goldengate())) {
+             SLSRegisterConnectionNotifyProc(g_connection, connection_handler, 1327, NULL);
+             SLSRegisterConnectionNotifyProc(g_connection, connection_handler, 1328, NULL);
+         }
+@@ -329,7 +329,7 @@ int main(int argc, char **argv)
+     SLSRegisterConnectionNotifyProc(g_connection, connection_handler, 808, NULL);
+     SLSRegisterConnectionNotifyProc(g_connection, connection_handler, 1202, NULL);
+ 
+-    if (workspace_is_macos_sequoia() || workspace_is_macos_tahoe()) {
++    if (workspace_is_macos_sequoia() || (workspace_is_macos_tahoe() || workspace_is_macos_goldengate())) {
+         SLSRegisterConnectionNotifyProc(g_connection, connection_handler, 804, NULL);
+     }
+ 
+@@ -337,7 +337,7 @@ int main(int argc, char **argv)
+     space_manager_begin(&g_space_manager);
+     window_manager_begin(&g_space_manager, &g_window_manager);
+ 
+-    if (workspace_is_macos_sequoia() || workspace_is_macos_tahoe()) {
++    if (workspace_is_macos_sequoia() || (workspace_is_macos_tahoe() || workspace_is_macos_goldengate())) {
+         update_window_notifications();
+     }
+ 
+-- 
+2.54.0 (Apple Git-157)
+

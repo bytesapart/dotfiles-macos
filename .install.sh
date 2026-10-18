@@ -13,7 +13,7 @@ brew analytics off
 ## Taps
 echo "Tapping Brew..."
 brew tap FelixKratz/formulae
-brew tap koekeishiya/formulae
+brew tap asmvik/formulae
 
 ## Formulae
 echo "Installing Brew Formulae..."
@@ -37,7 +37,6 @@ brew install borders
 brew install yabai
 
 ### Science
-brew install mactex
 brew install hdf5
 brew install gnuplot
 brew install texlab
@@ -96,9 +95,7 @@ brew install --cask font-fira-code
 
 # Mac App Store Apps
 echo "Installing Mac App Store Apps..."
-mas install 1451685025 #Wireguard
 mas install 497799835 #xCode
-mas install 1480933944 #Vimari
 
 # macOS Settings
 echo "Changing macOS defaults..."
@@ -144,7 +141,7 @@ sudo defaults write /Library/Preferences/com.apple.airport.bt.plist bluetoothCoe
 
 # Copying and checking out configuration files
 echo "Planting Configuration Files..."
-[ ! -d "$HOME/dotfiles" ] && git clone --bare git@github.com:FelixKratz/dotfiles.git $HOME/dotfiles
+[ ! -d "$HOME/dotfiles" ] && git clone --bare git@github.com:bytesapart/dotfiles-macos.git $HOME/dotfiles
 git --git-dir=$HOME/dotfiles/ --work-tree=$HOME checkout master
 
 # Installing Fonts
@@ -163,32 +160,24 @@ rm -rf /tmp/simple-completion-language-server
 source $HOME/.zshrc
 cfg config --local status.showUntrackedFiles no
 
-# Python Packages (mainly for data science)
-echo "Installing Python Packages..."
-curl https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-arm64.sh | sh
-source $HOME/.zshrc
-conda install -c apple tensorflow-deps
-conda install -c conda-forge pybind11
-conda install matplotlib
-conda install jupyterlab
-conda install seaborn
-conda install opencv
-conda install joblib
-conda install pytables
-pip install tensorflow-macos
-pip install tensorflow-metal
-pip install debugpy
-pip install sklearn
+# yabai on macOS 27: upstream yabai (v7.1.25) has no working scripting
+# addition there (its payload rejects major version 27), so `space --focus`
+# is a silent no-op. Build/install the patched fork instead; it verifies the
+# Dock offsets for this machine before touching anything.
+# See install_yabai_macos27.sh (checked out above) for details.
+if [ "$(sw_vers -productVersion | cut -d. -f1)" -ge 27 ]; then
+  echo "Installing patched yabai for macOS 27..."
+  $HOME/install_yabai_macos27.sh
+fi
 
 # Start Services
 echo "Starting Services (grant permissions)..."
 brew services start skhd
-brew services start fyabai
+yabai --start-service
 brew services start sketchybar
 brew services start borders
 brew services start svim
 
 csrutil status
 echo "(optional) Disable SIP for advanced yabai features."
-echo "(optional) Add sudoer manually:\n '$(whoami) ALL = (root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | awk "{print \$1;}") $(which yabai) --load-sa' to '/private/etc/sudoers.d/yabai'"
 echo "Installation complete...\n"
