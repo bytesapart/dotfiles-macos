@@ -1,5 +1,10 @@
-// Mocha clock - big time, date underneath. Pure JS clock, no shell needed.
+// Mocha clock - big time, date underneath.
+// NOTE: Ubersicht only re-renders when `command` produces output, so the
+// time comes from `date` (refreshFrequency) instead of `new Date()` in
+// render, which would paint once and freeze.
 export const refreshFrequency = 1000;
+
+export const command = "date '+%H|%M|%S|%A|%-d|%b'";
 
 export const className = {
   top: '104px',
@@ -30,13 +35,9 @@ const date = {
 
 const dot = { color: '#cba6f7' };
 
-export const render = () => {
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mm = String(now.getMinutes()).padStart(2, '0');
-  const ss = String(now.getSeconds()).padStart(2, '0');
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const render = ({ output }) => {
+  const [hh = '--', mm = '--', ss = '--', day = '', dateNum = '', mon = ''] =
+    String(output || '').trim().split('|');
   return (
     <div>
       <div style={time}>
@@ -47,7 +48,7 @@ export const render = () => {
         {ss}
       </div>
       <div style={date}>
-        {days[now.getDay()]} · {now.getDate()} {months[now.getMonth()]}
+        {day} · {dateNum} {mon}
       </div>
     </div>
   );
