@@ -48,6 +48,14 @@ brew install starship
 brew install zsh-autosuggestions
 brew install zsh-fast-syntax-highlighting
 brew install zoxide
+brew install eza
+brew install bat
+brew install fd
+brew install fzf
+brew install git-delta
+brew install vivid
+brew install fastfetch
+brew install tealdeer
 
 ### Nice to have
 brew install lulu
@@ -169,6 +177,18 @@ if [ "$(sw_vers -productVersion | cut -d. -f1)" -ge 27 ]; then
   echo "Installing patched yabai for macOS 27..."
   $HOME/install_yabai_macos27.sh
 fi
+
+# Pretty git diffs via delta (bat theme is in .config/bat; rebuild its cache
+# after the checkout above so delta can see the Catppuccin Mocha theme)
+bat cache --build 2>/dev/null || true
+git config --global core.pager delta
+git config --global interactive.diffFilter 'delta --color-only'
+git config --global delta.navigate true
+git config --global delta.line-numbers true
+git config --global delta.hyperlinks true
+git config --global delta.syntax-theme 'Catppuccin Mocha'
+git config --global merge.conflictstyle diff3
+git config --global diff.colorMoved default
 
 # Start Services
 echo "Starting Services (grant permissions)..."
