@@ -178,6 +178,10 @@ if [ "$(sw_vers -productVersion | cut -d. -f1)" -ge 27 ]; then
   $HOME/install_yabai_macos27.sh
 fi
 
+# lazygit reads its config from Application Support on macOS, not .config
+mkdir -p "$HOME/Library/Application Support/lazygit"
+cp "$HOME/.config/lazygit/config.yml" "$HOME/Library/Application Support/lazygit/config.yml"
+
 # Pretty git diffs via delta (bat theme is in .config/bat; rebuild its cache
 # after the checkout above so delta can see the Catppuccin Mocha theme)
 bat cache --build 2>/dev/null || true

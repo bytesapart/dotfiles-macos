@@ -104,8 +104,14 @@ export FZF_DEFAULT_OPTS="--color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38b
 export FZF_DEFAULT_COMMAND="fd --type f --hidden --exclude .git"
 export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
 export FZF_ALT_C_COMMAND="fd --type d --hidden --exclude .git"
+export FZF_CTRL_T_OPTS="--preview 'bat --color=always --style=numbers --line-range=:300 {} 2>/dev/null || eza --tree --level=2 --icons=auto --color=always {}'"
+export FZF_ALT_C_OPTS="--preview 'eza --tree --level=2 --icons=auto --color=always {}'"
 source <(fzf --zsh)
+
+# colored man pages via bat
+export MANPAGER="sh -c 'col -bx | bat --language=man --plain'"
+export MANROFFOPT="-c"
 export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#6c7086"
 
 # greeting in fresh interactive terminals
-[[ -o interactive && -t 1 ]] && fastfetch --logo small 2>/dev/null
+[[ -o interactive && -t 1 ]] && fastfetch 2>/dev/null
