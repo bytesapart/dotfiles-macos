@@ -1,4 +1,4 @@
-# Starship prompt - Catppuccin Mocha
+# Starship prompt - Catppuccin Mocha, powerline segments
 # https://starship.rs/config/  (palette: https://github.com/catppuccin/catppuccin)
 "$schema" = 'https://starship.rs/config-schema.json'
 
@@ -7,22 +7,22 @@ add_newline = false
 command_timeout = 1000
 continuation_prompt = "[∙](overlay1) "
 
+# Left-hand powerline: [os/user] [directory] [git] [languages] [infra] [time]
+# Each segment has a background color; the  glyphs transition between them.
 format = """
+[](fg:surface0)\
 $os\
 $username\
 $hostname\
+[](bg:peach fg:surface0)\
 $directory\
+[](bg:green fg:peach)\
 $git_branch\
 $git_commit\
 $git_state\
 $git_status\
 $git_metrics\
-$fill\
-$cmd_duration\
-$jobs\
-$status\
-$time\
-$line_break\
+[](bg:teal fg:green)\
 $python\
 $rust\
 $nodejs\
@@ -32,52 +32,65 @@ $cpp\
 $lua\
 $zig\
 $package\
+[](bg:blue fg:teal)\
 $docker_context\
 $kubernetes\
+[](bg:lavender fg:blue)\
+$cmd_duration\
+$jobs\
+$status\
+$time\
+[](fg:lavender)\
+$line_break\
 $character"""
 
 [os]
 disabled = false
-style = "bold overlay2"
+style = "bg:surface0 fg:text"
 format = "[$symbol ]($style)"
 
 [username]
 show_always = false
-style_user = "bold lavender"
-format = "[$user]($style) "
+style_user = "bg:surface0 fg:text"
+style_root = "bg:surface0 fg:red"
+format = "[$user ]($style)"
 
 [hostname]
 ssh_only = true
-style = "bold mauve"
-format = "[@$hostname]($style) "
+style = "bg:surface0 fg:text"
+format = "[@$hostname ]($style)"
 
 [directory]
-style = "bold blue"
+style = "bg:peach fg:crust"
 truncation_length = 3
 truncation_symbol = "…/"
 truncate_to_repo = true
 read_only = " 󰌾"
-read_only_style = "red"
-format = "[$path]($style)[$read_only]($read_only_style) "
+read_only_style = "bg:peach fg:red"
+format = "[ $path ]($style)[$read_only ]($read_only_style)"
 [directory.substitutions]
-"~/code" = "󰲋 "
-"~/Documents" = "󰈙 "
-"~/Downloads" = "󰉍 "
+"~/code" = "󰲋 code"
+"~/Documents" = "󰈙 docs"
+"~/Downloads" = "󰉍 dl"
 
 [git_branch]
-style = "bold mauve"
-format = "[$symbol$branch(:$remote_branch)]($style) "
+style = "bg:green fg:crust"
+format = "[ $symbol$branch(:$remote_branch) ]($style)"
 
 [git_commit]
 commit_hash_length = 7
 tag_disabled = false
 only_detached = false
-style = "bold teal"
-format = "[\\($hash$tag\\)]($style) "
+style = "bg:green fg:crust"
+format = "[\\($hash$tag\\) ]($style)"
+
+[git_state]
+style = "bg:green fg:crust"
+format = "([$state( $progress_current/$progress_total)]($style) )"
 
 [git_status]
-style = "bold yellow"
-format = "([\\[$all_status$ahead_behind\\]]($style) )"
+style = "bg:green fg:crust"
+format = "([\\[$all_status$ahead_behind\\] ]($style))"
 conflicted = "󰘬 "
 ahead = "⇡${count} "
 behind = "⇣${count} "
@@ -92,84 +105,81 @@ deleted = "✘${count} "
 
 [git_metrics]
 disabled = false
-added_style = "bold green"
-deleted_style = "bold red"
-format = '([+$added]($added_style)) ([-$deleted]($deleted_style)) '
+added_style = "bg:green fg:crust"
+deleted_style = "bg:green fg:crust"
+format = '([+$added ]($added_style))([-$deleted ]($deleted_style))'
 
-[fill]
-symbol = " "
+# Languages: shown only inside matching projects (default detection).
+[python]
+style = "bg:teal fg:crust"
+format = "[ $symbol${pyenv_prefix}(${version} )(\\($virtualenv\\) )]($style)"
+
+[rust]
+style = "bg:teal fg:crust"
+format = "[ $symbol($version )]($style)"
+
+[nodejs]
+style = "bg:teal fg:crust"
+format = "[ $symbol($version )]($style)"
+
+[golang]
+style = "bg:teal fg:crust"
+format = "[ $symbol($version )]($style)"
+
+[c]
+style = "bg:teal fg:crust"
+format = "[ $symbol($version )]($style)"
+
+[cpp]
+style = "bg:teal fg:crust"
+format = "[ $symbol($version )]($style)"
+
+[lua]
+style = "bg:teal fg:crust"
+format = "[ $symbol($version )]($style)"
+
+[zig]
+style = "bg:teal fg:crust"
+format = "[ $symbol($version )]($style)"
+
+[package]
+symbol = "󰏗 "
+style = "bg:teal fg:crust"
+format = "[ $symbol$version ]($style)"
+
+[docker_context]
+style = "bg:blue fg:crust"
+only_with_files = true
+format = "[ $symbol$context ]($style)"
+
+[kubernetes]
+disabled = false
+symbol = "󱃾 "
+style = "bg:blue fg:crust"
+format = "[ $symbol$context( \\($namespace\\)) ]($style)"
 
 [cmd_duration]
 min_time = 2_000
-style = "yellow"
-format = "[took $duration]($style) "
+style = "bg:lavender fg:crust"
+format = "[ took $duration ]($style)"
 
 [jobs]
 symbol = "󰒓 "
-style = "bold peach"
-format = "[$symbol$number]($style) "
+style = "bg:lavender fg:crust"
+format = "[ $symbol$number ]($style)"
 
 [status]
 disabled = false
 symbol = "✘"
 success_symbol = ""
-style = "bold red"
-format = "[$symbol $status]($style) "
+style = "bg:lavender fg:red"
+format = "[ $symbol $status ]($style)"
 
 [time]
 disabled = false
 time_format = "%T"
-style = "overlay1"
-format = "[󰥔 $time]($style)"
-
-# Languages: shown only inside matching projects (default detection).
-[python]
-style = "bold yellow"
-format = "[${symbol}${pyenv_prefix}(${version} )(\\($virtualenv\\) )]($style)"
-
-[rust]
-style = "bold peach"
-format = "[$symbol($version )]($style)"
-
-[nodejs]
-style = "bold green"
-format = "[$symbol($version )]($style)"
-
-[golang]
-style = "bold sky"
-format = "[$symbol($version )]($style)"
-
-[c]
-style = "bold sapphire"
-format = "[$symbol($version )]($style)"
-
-[cpp]
-style = "bold sapphire"
-format = "[$symbol($version )]($style)"
-
-[lua]
-style = "bold blue"
-format = "[$symbol($version )]($style)"
-
-[zig]
-style = "bold yellow"
-format = "[$symbol($version )]($style)"
-
-[package]
-symbol = "󰏗 "
-style = "bold overlay2"
-format = "[$symbol$version]($style) "
-
-[docker_context]
-style = "bold blue"
-only_with_files = true
-format = "[$symbol$context]($style) "
-
-[kubernetes]
-disabled = false
-symbol = "󱃾 "
-style = "bold sapphire"
-format = "[$symbol$context( \\($namespace\\))]($style) "
+style = "bg:lavender fg:crust"
+format = "[ 󰥔 $time ]($style)"
 
 [character]
 success_symbol = "[❯](bold green)"
