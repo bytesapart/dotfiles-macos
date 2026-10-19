@@ -211,7 +211,7 @@ click each (the script opens the right pane and waits):
    Show on all Spaces.
 3. holzBar layout: `open "holzbar://settings"` → Menu Bar Layout →
    Import Profile… → `assets/holzbar-mocha.holzbarprofile`.
-   Then log out/in once (unhidden native bar + sketchybar stack).
+   Then log out/in once (autohide native bar takes effect).
 
 ## Credits
 

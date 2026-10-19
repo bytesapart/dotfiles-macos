@@ -3,9 +3,9 @@
 export const refreshFrequency = 3000;
 
 export const command =
-  "ps -Ao %cpu,args -r | head -7 | tail -6 | /usr/bin/python3 -c 'import sys,os; " +
-  "[print(f\"{os.path.basename(l.split(None,1)[1].split()[0])}|{float(l.split()[0]):.1f}\") " +
-  "for l in sys.stdin if l.split()]'";
+  "ps -Ao %cpu,%mem,args -r | head -7 | tail -6 | /usr/bin/python3 -c 'import sys,os; " +
+  "[print(f\"{os.path.basename(l.split(None,2)[2].split()[0])}|{float(l.split()[0]):.1f}|{float(l.split()[1]):.1f}\") " +
+  "for l in sys.stdin if len(l.split())>2]'";
 
 export const className = {
   top: '360px',
@@ -47,11 +47,13 @@ export const render = ({ output }) => {
     <div>
       <div style={title}>TOP</div>
       {rows.map((line) => {
-        const [name, cpu] = line.split('|');
+        const [name, cpu, mem] = line.split('|');
         return (
           <div style={row} key={name + cpu}>
-            <span>{String(name).slice(0, 20)}</span>
-            <span style={pct}>{cpu}%</span>
+            <span>{String(name).slice(0, 16)}</span>
+            <span style={pct}>
+              {cpu}% <span style={{ color: '#89b4fa' }}>{mem}%</span>
+            </span>
           </div>
         );
       })}

@@ -62,7 +62,7 @@ export const render = ({ output }) => {
   return (
     <div onClick={() => run('nowplaying-cli toggle')}>
       <div style={track}>
-        {playing ? '▶ ' : '⏸ '}
+        {playing ? '▶︎ ' : '⏸︎ '}
         {title.slice(0, 32)}
       </div>
       <div style={artist}>{artistName.slice(0, 32)}</div>

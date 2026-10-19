@@ -84,10 +84,9 @@ else
 fi
 open -a holzBar 2>/dev/null || true
 
-# Native menu bar must be visible for the holzBar icon + shelf (takes effect
-# at next login). sketchybar's y_offset in .config/sketchybar/bar.lua already
-# clears it.
-defaults write NSGlobalDomain _HIHideMenuBar -bool false
+# Native menu bar stays auto-hidden (mouse to the top reveals it, with the
+# holzBar icon); sketchybar owns the strip at y=0. Takes effect at login.
+defaults write NSGlobalDomain _HIHideMenuBar -bool true
 
 # 7. Theme caches ---------------------------------------------------------------
 say "Rebuilding theme caches…"
