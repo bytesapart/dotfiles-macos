@@ -28,7 +28,7 @@ const pill = (focused) => ({
   background: focused ? '#cba6f7' : 'rgba(17, 17, 27, 0.55)',
   border: focused
     ? '1px solid #cba6f7'
-    : '1px solid rgba(69, 71, 90, 0.8)',
+    : '2px solid rgba(205, 214, 244, 0.75)',
 });
 
 const sub = {

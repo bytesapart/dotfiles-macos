@@ -2,7 +2,9 @@
 // Command-driven (Ubersicht only re-renders on command output).
 export const refreshFrequency = 60000;
 
-export const command = `/bin/df -g / | awk 'NR==2 {gsub(/%/, "", $5); print $5"|"$3"|"$2}'`;
+// NOTE: `df /` reports the sealed system snapshot (~12 GB), not the real
+// disk. Use the APFS container totals, which match Finder/Settings.
+export const command = `/usr/sbin/diskutil info / | /usr/bin/python3 -c 'import sys,re; s=sys.stdin.read(); t=re.search(r"Container Total Space:.*\\((\\d+) Bytes",s); f=re.search(r"Container Free Space:.*\\((\\d+) Bytes",s); t=int(t.group(1)) if t else 0; f=int(f.group(1)) if f else 0; u=t-f; print(f"{u*100//t if t else 0}|{u//1073741824}|{t//1073741824}")'`;
 
 export const className = {
   top: '584px',
@@ -12,7 +14,7 @@ export const className = {
   userSelect: 'none',
   color: '#a6adc8',
   background: 'rgba(17, 17, 27, 0.55)',
-  border: '1px solid rgba(69, 71, 90, 0.8)',
+  border: '2px solid rgba(205, 214, 244, 0.75)',
   borderRadius: '10px',
   padding: '10px 14px',
   minWidth: '190px',

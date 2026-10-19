@@ -22,7 +22,7 @@ export const className = {
   letterSpacing: '2px',
   color: '#a6adc8',
   background: 'rgba(17, 17, 27, 0.55)',
-  border: '1px solid rgba(69, 71, 90, 0.8)',
+  border: '2px solid rgba(205, 214, 244, 0.75)',
   borderRadius: '10px',
   padding: '8px 18px',
   userSelect: 'none',

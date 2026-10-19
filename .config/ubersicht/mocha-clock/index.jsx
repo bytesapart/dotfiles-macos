@@ -7,12 +7,17 @@ export const refreshFrequency = 1000;
 export const command = "date '+%H|%M|%S|%A|%-d|%b'";
 
 export const className = {
-  top: '104px',
+  top: '96px',
   left: '50%',
   transform: 'translateX(-50%)',
   fontFamily: '-apple-system, "SF Pro Display", sans-serif',
   textAlign: 'center',
   userSelect: 'none',
+  color: '#cdd6f4',
+  background: 'rgba(17, 17, 27, 0.55)',
+  border: '2px solid rgba(205, 214, 244, 0.75)',
+  borderRadius: '14px',
+  padding: '12px 26px',
 };
 
 const time = {

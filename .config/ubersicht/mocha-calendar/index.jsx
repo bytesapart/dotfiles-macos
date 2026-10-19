@@ -13,7 +13,7 @@ export const className = {
   userSelect: 'none',
   color: '#cdd6f4',
   background: 'rgba(17, 17, 27, 0.55)',
-  border: '1px solid rgba(69, 71, 90, 0.8)',
+  border: '2px solid rgba(205, 214, 244, 0.75)',
   borderRadius: '10px',
   padding: '10px 14px',
   fontSize: '12px',
@@ -22,7 +22,18 @@ export const className = {
   cursor: 'pointer',
 };
 
-const today = { color: '#11111b', background: '#cba6f7', borderRadius: '4px' };
+const today = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '22px',
+  height: '22px',
+  color: '#11111b',
+  fontWeight: 800,
+  background: '#cba6f7',
+  borderRadius: '50%',
+  boxShadow: '0 0 12px rgba(203, 166, 247, 0.65)',
+};
 
 export const render = ({ output }) => {
   const now = new Date();
